@@ -5,10 +5,17 @@
 %Raymundo Cassani 
 %raymundo.cassani@gmail.com
 %July 2014
- 
+
+%%%%%%%%%%%%%%%%%%%%%
+
 clear all;
 close all;
-pause(0.01);
+
+%Check if the Instrumentation Control Toolbox is present
+tbName = 'Instrument Control Toolbox';
+verInfo = ver;
+tbFlag = any(strcmp(tbName, {verInfo.Name}));
+
 %Note that these paths dependes of the muse-io.exe version, in this case
 %V3.4.0
 oscPathV3_4_0{1,1} = '/muse/eeg';
@@ -21,20 +28,39 @@ oscPathV3_4_0{3,2} = 's';
 %Starts muse-io.exe
 system('start muse-io.exe' );
 
-%The server acept connection from any client
-tcpServer=tcpip('0.0.0.0', 5000, 'NetworkRole', 'server');
-%Buffer size
-tcpServer.InputBufferSize = 5000;
-tcpServer.Timeout = 3; 
+%Server parameters
+ip = '0.0.0.0'; %The server acept connection from any client
+port = 5000;  %Port
+timeoutSec = 10; %In seconds
 
-%Open a connection. This will not return until a connection is received.
-fopen(tcpServer);
+if tbFlag
+    tcpServer=tcpip(ip, port, 'NetworkRole', 'server');
+    tcpServer.InputBufferSize = 5000;
+    tcpServer.Timeout = timeoutSec;
+    %Open a connection. This will not return until a connection is received.
+    fopen(tcpServer);
+else
+    import java.net.ServerSocket
+    import java.net.InetSocketAddress
+    import java.io.*
+
+    serverISA = InetSocketAddress(ip, port);
+    serverSSocket = ServerSocket(port,0,serverISA.getAddress);
+    serverSSocket.setSoTimeout(timeoutSec*1000);
+
+    %Open a connection. This will not return until a connection is received.
+    serverSocket = serverSSocket.accept;
+
+    serverInputStream = serverSocket.getInputStream();
+    serverDIS = DataInputStream(serverInputStream); 
+end
 
 %Size of buffers to Read EEG ACC
 %As the EEG output sampling frequency is 220Hz
 fse = 220;
 fsa = 50;
 secBuffer = 10;
+
 eegName = {'TP9'; 'FP1'; 'FP2'; 'TP10'};
 eegBuffer = zeros([fse*secBuffer,numel(eegName)]);
 accName = {'F/B'; 'U/D'; 'R/L'};
@@ -47,15 +73,41 @@ conf1 = true;
 figure()
 
 while true
-    %Read the first 4 some bytes
-    a = fread(tcpServer, 4);
-    bytesToRead = double(swapbytes(typecast(uint8(a),'int32')));
-    %If Timeout ocurrs in the communication this program finish
-    try
-    bytesData = fread(tcpServer,bytesToRead);
-    catch err;
-        break
+    if tbFlag
+        try %Catch Matlab error
+            a = fread(tcpServer, 4);  %How large is the package (# bytes)
+        catch err;
+            break
+        end
+        bytesToRead = double(swapbytes(typecast(uint8(a),'int32')));
+        try %Catch Matlab error
+            bytesData = fread(tcpServer,bytesToRead);
+        catch err;
+            break
+        end
+        
+    else %Utilising Java Classes
+        for ind = 1:4 %How large is the package (# bytes)
+            try
+            a(ind) = DISread(serverDIS,'uint8');
+            catch e %catch "Java exception occurred"
+                break
+            end
+        end
+        bytesToRead = double(swapbytes(typecast(uint8(a),'int32')));
+        bytesData = zeros(bytesToRead,1);
+        for ind = 1:bytesToRead
+            try
+                bytesData(ind) = DISread(serverDIS,'uint8');
+            catch e; %catch "Java exception occurred"
+                break
+            end
+        end
+        if ind ~= bytesToRead
+            break
+        end
     end
+    
     [oscPath, oscTag, oscData] = splitOscMessage(bytesData);
     data = oscFormat(oscTag,oscData);
     
@@ -78,8 +130,8 @@ while true
         %More cases can be added to treat other paths   
     end
       
-%Plot every 30 EEG samples approx 140ms
-    if eegCounter == 20
+%Plot every 44 EEG samples approx 200ms
+    if eegCounter == 44
         if plot1
          subplot(2,1,1);
          time = 0:1/fse:secBuffer-1/fse;
@@ -105,10 +157,15 @@ while true
         end
     drawnow;   
     eegCounter = 0;
-    end  
-%   
+    end % if eegCounter   
+end %while true
+
+if tbFlag
+    fclose(tcpServer);
+    delete(tcpServer);
+else
+    serverSocket.close();
+    serverSSocket.close();
 end
 
-fclose(tcpServer);
 display('End of Acquisition');
-delete(tcpServer);
