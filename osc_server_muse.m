@@ -26,7 +26,9 @@ oscPathV3_4_0{3,1} = '/muse/config';
 oscPathV3_4_0{3,2} = 's';
 
 %Starts muse-io.exe
-system('start muse-io.exe' );
+%Preset 14 set the Muse headset to deliver 4 channels:
+%{'TP9'; 'FP1'; 'FP2'; 'TP10'};
+system('start "" "C:\Program Files (x86)\Muse\muse-io.exe" --preset 14' );
 
 %Server parameters
 ip = '0.0.0.0'; %The server acept connection from any client
@@ -130,8 +132,8 @@ while true
         %More cases can be added to treat other paths   
     end
       
-%Plot every 44 EEG samples approx 200ms
-    if eegCounter == 44
+%Plot every 22 EEG samples approx 100ms
+    if eegCounter == 22
         if plot1
          subplot(2,1,1);
          time = 0:1/fse:secBuffer-1/fse;
