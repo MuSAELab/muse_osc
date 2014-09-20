@@ -16,6 +16,15 @@ tbName = 'Instrument Control Toolbox';
 verInfo = ver;
 tbFlag = any(strcmp(tbName, {verInfo.Name}));
 
+%Verify Matlab Release
+release = sscanf(version('-release'),'%d%s');
+if release(1) < 2011
+    releaseFlag = false;
+else
+    releaseFlag = true;
+end
+
+
 %Note that these paths dependes of the muse-io.exe version, in this case
 %V3.4.0
 oscPathV3_4_0{1,1} = '/muse/eeg';
@@ -28,14 +37,15 @@ oscPathV3_4_0{3,2} = 's';
 %Starts muse-io.exe
 %Preset 14 set the Muse headset to deliver 4 channels:
 %{'TP9'; 'FP1'; 'FP2'; 'TP10'};
-system('start "" "C:\Program Files (x86)\Muse\muse-io.exe" --preset 14' );
+system('start "Running: muse-io.exe --preset 14" "C:\Program Files (x86)\Muse\muse-io.exe" --preset 14' );
 
 %Server parameters
 ip = '0.0.0.0'; %The server acept connection from any client
 port = 5000;  %Port
 timeoutSec = 10; %In seconds
 
-if tbFlag
+%Instrumentation Control Toolbox and Relase >2011 are necessary for TCP/IP objects 
+if tbFlag && releaseFlag
     tcpServer=tcpip(ip, port, 'NetworkRole', 'server');
     tcpServer.InputBufferSize = 5000;
     tcpServer.Timeout = timeoutSec;
