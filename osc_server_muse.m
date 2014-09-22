@@ -44,8 +44,10 @@ ip = '0.0.0.0'; %The server acept connection from any client
 port = 5000;  %Port
 timeoutSec = 10; %In seconds
 
+tcpFlag = tbFlag && releaseFlag;
+
 %Instrumentation Control Toolbox and Relase >2011 are necessary for TCP/IP objects 
-if tbFlag && releaseFlag
+if tcpFlag
     tcpServer=tcpip(ip, port, 'NetworkRole', 'server');
     tcpServer.InputBufferSize = 5000;
     tcpServer.Timeout = timeoutSec;
@@ -85,7 +87,7 @@ conf1 = true;
 figure()
 
 while true
-    if tbFlag
+    if tcpFlag
         try %Catch Matlab error
             a = fread(tcpServer, 4);  %How large is the package (# bytes)
         catch err;
@@ -142,8 +144,8 @@ while true
         %More cases can be added to treat other paths   
     end
       
-%Plot every 22 EEG samples approx 100ms
-    if eegCounter == 22
+%Plot every 44 EEG samples approx 200ms
+    if eegCounter == 44
         if plot1
          subplot(2,1,1);
          time = 0:1/fse:secBuffer-1/fse;
@@ -172,7 +174,7 @@ while true
     end % if eegCounter   
 end %while true
 
-if tbFlag
+if tcpFlag
     fclose(tcpServer);
     delete(tcpServer);
 else
