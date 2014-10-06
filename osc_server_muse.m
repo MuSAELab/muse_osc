@@ -1,7 +1,10 @@
 %OSC_SERVER_MUSE Reads the OSC package from the muse-io.exe application
 %Shows the configuration of the Muse headband
 %Plots EEG and acceleration data in online
-
+%More than one Muse headband can be used at the same time, each one will be
+%managed by a different instance of this script. Note that you must use a
+%different TCP port for each Muse.
+%
 %Raymundo Cassani 
 %raymundo.cassani@gmail.com
 %July 2014
@@ -16,7 +19,7 @@ tbName = 'Instrument Control Toolbox';
 verInfo = ver;
 tbFlag = any(strcmp(tbName, {verInfo.Name}));
 
-%Verify Matlab Release
+%Verify id the Matlab release is newer than 2011
 release = sscanf(version('-release'),'%d%s');
 if release(1) < 2011
     releaseFlag = false;
@@ -24,7 +27,7 @@ else
     releaseFlag = true;
 end
 
-
+%OCS Paths
 %Note that these paths dependes of the muse-io.exe version, in this case
 %V3.4.0
 oscPathV3_4_0{1,1} = '/muse/eeg';
@@ -34,19 +37,24 @@ oscPathV3_4_0{2,2} = 'fff';
 oscPathV3_4_0{3,1} = '/muse/config';
 oscPathV3_4_0{3,2} = 's';
 
-%Starts muse-io.exe
-%Preset 14 set the Muse headset to deliver 4 channels:
-%{'TP9'; 'FP1'; 'FP2'; 'TP10'};
-system('start "Running: muse-io.exe --preset 14" "C:\Program Files (x86)\Muse\muse-io.exe" --preset 14' );
-
 %Server parameters
-ip = '0.0.0.0'; %The server acept connection from any client
-port = 5000;  %Port
+%These parameters configure where the data fom muse-io.exe will be sent
+ip = '0.0.0.0'; %Localhost
+port = 5000;  %TCP Port (default port is 5000)
 timeoutSec = 10; %In seconds
 
+%Starts muse-io.exe
+%Preset 14 set the Muse headset to deliver 4 channels:
+%{'TP9'; 'FP1'; 'FP2'; 'TP10'}
+system(['start "Running: muse-io.exe --preset 14" "C:\Program Files (x86)\Muse\muse-io.exe" --preset 14 --osc osc.tcp://localhost:' num2str(port)]);
+
+
+%This flags indicates if the TCP connection will be done using the 
+%TCP/IP objects(tcpFlag == true)
+%   Instrumentation Control Toolbox and Relase >2011 are needed; OR using 
+%Java ServerSocker (tcpFlag == false)
 tcpFlag = tbFlag && releaseFlag;
 
-%Instrumentation Control Toolbox and Relase >2011 are necessary for TCP/IP objects 
 if tcpFlag
     tcpServer=tcpip(ip, port, 'NetworkRole', 'server');
     tcpServer.InputBufferSize = 5000;
